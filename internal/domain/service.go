@@ -13,40 +13,35 @@ type Peer struct {
 }
 
 type Service struct {
-	cfg  *config.Config
-	repo *infra.PeerRepo
+	cfg   *config.Config
+	repo  *infra.PeerRepo
+	wgApp *infra.WGApplier
 }
 
-func NewService(cfg *config.Config, repo *infra.PeerRepo) *Service {
-	return &Service{
-		cfg:  cfg,
-		repo: repo,
-	}
+func NewService(cfg *config.Config, repo *infra.PeerRepo, wgApp *infra.WGApplier) *Service {
+	return &Service{cfg: cfg, repo: repo, wgApp: wgApp}
 }
 
 func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
-	// 1) сколько пиров уже занято
 	count, err := s.repo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	// 2) следующий индекс (10.0.0.2, .3, ...)
 	clientIndex := count + 2
 
-	// 3) создаём peer
 	p, err := wg.CreatePeer(s.cfg, clientIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4) сохраняем peer как занятый
+	// ВАЖНО: применяем peer к WireGuard
+	if err := s.wgApp.ApplyPeer(ctx, p.PublicKey, p.Address); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Save(ctx, p.PublicKey, p.Address); err != nil {
 		return nil, err
 	}
 
-	// 5) отдаём конфиг клиенту
-	return &Peer{
-		Config: p.Config,
-	}, nil
+	return &Peer{Config: p.Config}, nil
 }

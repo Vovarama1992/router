@@ -35,8 +35,9 @@ func main() {
 	// ---- infra ----
 	cfg := config.Load()
 	peerRepo := infra.NewPeerRepo(db)
+	wgApplier := infra.NewWGApplier(cfg.WGInterface)
 
-	vpnService := domain.NewService(cfg, peerRepo)
+	vpnService := domain.NewService(cfg, peerRepo, wgApplier)
 
 	// ---- handlers ----
 	vpnHandler := delivery.NewVPNHandler(vpnService)
