@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  router:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - router_pg:/var/lib/postgresql/data
+
+volumes:
+  router_pg:
