@@ -3,8 +3,8 @@
 APP_NAME=router
 DB_NAME=router
 DB_USER=postgres
-DB_CONTAINER=router-db
-APP_CONTAINER=router
+DB_CONTAINER=router-db-1
+APP_CONTAINER=router-router-1
 
 # --- быстрый деплой приложения ---
 refresh:
