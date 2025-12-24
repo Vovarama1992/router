@@ -2,7 +2,7 @@
 
 APP_NAME=router
 DB_NAME=router
-DB_USER=postgres
+DB_USER=router
 DB_CONTAINER=router-db-1
 APP_CONTAINER=router-router-1
 
