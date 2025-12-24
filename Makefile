@@ -1,47 +1,37 @@
-.PHONY: refresh full-refresh build up down logs app-logs commit migrate db
+.PHONY: refresh build run restart stop status logs commit migrate db
 
 APP_NAME=router
-DB_NAME=router
-DB_USER=router
-DB_CONTAINER=router-db-1
-APP_CONTAINER=router-router-1
+APP_BIN=./bin/router
+ENV_FILE=.env
 
 # --- быстрый деплой приложения ---
 refresh:
 	git pull origin master
-	docker compose build router
-	docker compose stop router
-	docker compose up -d --no-deps router
-	docker compose logs -f router
+	$(MAKE) build
+	sudo systemctl restart $(APP_NAME)
+	$(MAKE) logs
 
-# --- полный рефреш (без удаления volumes) ---
-full-refresh:
-	git pull origin master
-	docker compose down
-	docker compose build --no-cache
-	docker compose up -d
-	$(MAKE) migrate
-	docker compose logs -f router
-
-# --- сборка контейнеров ---
+# --- сборка бинаря ---
 build:
-	docker compose build
+	mkdir -p bin
+	go build -o $(APP_BIN) ./cmd
 
-# --- поднять сервисы ---
-up:
-	docker compose up -d
+# --- запуск вручную (для отладки) ---
+run:
+	$(APP_BIN)
 
-# --- остановить сервисы ---
-down:
-	docker compose down
+# --- systemd ---
+restart:
+	sudo systemctl restart $(APP_NAME)
 
-# --- логи всех сервисов ---
+stop:
+	sudo systemctl stop $(APP_NAME)
+
+status:
+	sudo systemctl status $(APP_NAME) --no-pager
+
 logs:
-	docker compose logs -f
-
-# --- логи только backend ---
-app-logs:
-	docker logs --tail=100 -f $(APP_CONTAINER)
+	sudo journalctl -u $(APP_NAME) -n 200 -f
 
 # --- Git ---
 commit:
@@ -51,8 +41,8 @@ commit:
 
 # --- применить миграции ---
 migrate:
-	cat migrations/*.sql | docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
+	@set -a; . $(ENV_FILE); set +a; cat migrations/*.sql | psql "$$DATABASE_URL"
 
 # --- зайти в PostgreSQL ---
 db:
-	docker exec -it $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
+	@set -a; . $(ENV_FILE); set +a; psql "$$DATABASE_URL"
