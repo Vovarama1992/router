@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -13,9 +14,12 @@ import (
 	"router/internal/delivery"
 	"router/internal/domain"
 	"router/internal/infra"
+	"router/internal/telegram"
 )
 
 func main() {
+	ctx := context.Background()
+
 	// ---- DB ----
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -39,10 +43,18 @@ func main() {
 
 	vpnService := domain.NewService(cfg, peerRepo, wgApplier)
 
-	// ---- handlers ----
+	// ---- Telegram bot ----
+	app, err := telegram.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bot := telegram.NewBot(app, vpnService)
+
+	go app.Run(ctx, bot.Handle)
+	// ---- HTTP ----
 	vpnHandler := delivery.NewVPNHandler(vpnService)
 
-	// ---- router ----
 	r := chi.NewRouter()
 	delivery.RegisterVPNRoutes(r, vpnHandler)
 
