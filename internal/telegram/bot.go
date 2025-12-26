@@ -6,6 +6,7 @@ import (
 	"router/internal/domain"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/skip2/go-qrcode"
 )
 
 type Bot struct {
@@ -61,6 +62,7 @@ func (b *Bot) onCallback(cb *tgbotapi.CallbackQuery) {
 		return
 	}
 
+	// 1. Отправляем файл
 	doc := tgbotapi.NewDocument(
 		cb.Message.Chat.ID,
 		tgbotapi.FileBytes{
@@ -68,6 +70,27 @@ func (b *Bot) onCallback(cb *tgbotapi.CallbackQuery) {
 			Bytes: []byte(peer.Config),
 		},
 	)
-
 	b.app.API().Send(doc)
+
+	// 2. Генерим QR
+	qrBytes, err := qrcode.Encode(peer.Config, qrcode.Medium, 256)
+	if err != nil {
+		b.app.API().Send(
+			tgbotapi.NewMessage(cb.Message.Chat.ID, "Ошибка генерации QR"),
+		)
+		return
+	}
+
+	// 3. Отправляем QR
+	photo := tgbotapi.NewPhoto(
+		cb.Message.Chat.ID,
+		tgbotapi.FileBytes{
+			Name:  "wg_qr.png",
+			Bytes: qrBytes,
+		},
+	)
+
+	photo.Caption = "QR для импорта в WireGuard"
+
+	b.app.API().Send(photo)
 }
