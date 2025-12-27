@@ -40,10 +40,9 @@ func (b *Bot) onMessage(msg *tgbotapi.Message) {
 
 	m := tgbotapi.NewMessage(
 		msg.Chat.ID,
-		"Нажми кнопку, чтобы получить VPN-конфиг",
+		"Нажми кнопку ниже, чтобы получить VPN-конфиг",
 	)
 	m.ReplyMarkup = mainKeyboard()
-
 	b.app.API().Send(m)
 }
 
