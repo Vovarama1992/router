@@ -27,43 +27,34 @@ func (b *Bot) Handle(update tgbotapi.Update) {
 		return
 	}
 
-	if update.CallbackQuery != nil {
-		b.onCallback(update.CallbackQuery)
-		return
-	}
 }
 
 func (b *Bot) onMessage(msg *tgbotapi.Message) {
-	if msg.Text != "/start" {
+	if msg.Text == "/start" {
+		m := tgbotapi.NewMessage(
+			msg.Chat.ID,
+			"Нажми кнопку ниже, чтобы получить VPN-конфиг",
+		)
+		m.ReplyMarkup = mainKeyboard()
+		b.app.API().Send(m)
 		return
 	}
 
-	m := tgbotapi.NewMessage(
-		msg.Chat.ID,
-		"Нажми кнопку ниже, чтобы получить VPN-конфиг",
-	)
-	m.ReplyMarkup = mainKeyboard()
-	b.app.API().Send(m)
+	if msg.Text == "Получить конфиг" {
+		b.sendConfig(msg.Chat.ID)
+	}
 }
 
-func (b *Bot) onCallback(cb *tgbotapi.CallbackQuery) {
-	b.app.API().Request(tgbotapi.NewCallback(cb.ID, ""))
-
-	if cb.Data != "get_config" {
-		return
-	}
-
+func (b *Bot) sendConfig(chatID int64) {
 	peer, err := b.svc.CreatePeer(context.Background())
 	if err != nil {
 		b.app.API().Send(
-			tgbotapi.NewMessage(cb.Message.Chat.ID, "Ошибка создания конфига"),
+			tgbotapi.NewMessage(chatID, "Ошибка создания конфига"),
 		)
 		return
 	}
 
-	// 1. Отправляем файл
-	doc := tgbotapi.NewDocument(
-		cb.Message.Chat.ID,
+	doc := tgbotapi.NewDocument(chatID,
 		tgbotapi.FileBytes{
 			Name:  "wg.conf",
 			Bytes: []byte(peer.Config),
@@ -71,25 +62,9 @@ func (b *Bot) onCallback(cb *tgbotapi.CallbackQuery) {
 	)
 	b.app.API().Send(doc)
 
-	// 2. Генерим QR
-	qrBytes, err := qrcode.Encode(peer.Config, qrcode.Medium, 256)
-	if err != nil {
-		b.app.API().Send(
-			tgbotapi.NewMessage(cb.Message.Chat.ID, "Ошибка генерации QR"),
-		)
-		return
-	}
-
-	// 3. Отправляем QR
-	photo := tgbotapi.NewPhoto(
-		cb.Message.Chat.ID,
-		tgbotapi.FileBytes{
-			Name:  "wg_qr.png",
-			Bytes: qrBytes,
-		},
+	qr, _ := qrcode.Encode(peer.Config, qrcode.Medium, 256)
+	photo := tgbotapi.NewPhoto(chatID,
+		tgbotapi.FileBytes{Name: "wg.png", Bytes: qr},
 	)
-
-	photo.Caption = "QR для импорта в WireGuard"
-
 	b.app.API().Send(photo)
 }
