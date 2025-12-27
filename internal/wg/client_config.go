@@ -6,13 +6,14 @@ import (
 )
 
 type ClientConfigParams struct {
-	ClientPrivateKey string
-	ClientAddress    string
-	DNS              string
-
-	ServerPublicKey string
-	ServerEndpoint  string
-	AllowedIPs      string
+	ClientPrivateKey    string
+	ClientAddress       string
+	DNS                 string
+	ServerPublicKey     string
+	ServerEndpoint      string
+	AllowedIPs          string
+	MTU                 int
+	PersistentKeepalive int
 }
 
 func RenderClientConfig(tplPath string, params ClientConfigParams) (string, error) {

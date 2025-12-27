@@ -28,12 +28,14 @@ func CreatePeer(cfg *config.Config, clientIndex int) (*Peer, error) {
 	conf, err := RenderClientConfig(
 		cfg.ClientTplPath,
 		ClientConfigParams{
-			ClientPrivateKey: keys.Private,
-			ClientAddress:    clientIP,
-			DNS:              cfg.ClientDNS,
-			ServerPublicKey:  cfg.WGPublicKey,
-			ServerEndpoint:   cfg.WGEndpoint,
-			AllowedIPs:       cfg.ClientIPs,
+			ClientPrivateKey:    keys.Private,
+			ClientAddress:       clientIP,
+			DNS:                 cfg.ClientDNS,
+			ServerPublicKey:     cfg.WGPublicKey,
+			ServerEndpoint:      cfg.WGEndpoint,
+			AllowedIPs:          cfg.ClientIPs,
+			MTU:                 1280,
+			PersistentKeepalive: 25,
 		},
 	)
 	if err != nil {
