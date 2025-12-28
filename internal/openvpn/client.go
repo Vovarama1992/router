@@ -49,8 +49,6 @@ remote-cert-tls server
 cipher AES-256-GCM
 auth SHA256
 
-tls-crypt ta.key
-
 verb 3
 
 <ca>
