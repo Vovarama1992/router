@@ -7,7 +7,6 @@ import (
 	"router/internal/domain"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/skip2/go-qrcode"
 )
 
 type Bot struct {
@@ -67,25 +66,4 @@ func (b *Bot) sendConfig(chatID int64) {
 		log.Println("[BOT] send file error:", err)
 		return
 	}
-
-	// 2. QR
-	qr, err := qrcode.Encode(peer.Config, qrcode.Medium, 256)
-	if err != nil {
-		log.Println("[BOT] qr encode error:", err)
-		return
-	}
-
-	photo := tgbotapi.NewPhoto(chatID,
-		tgbotapi.FileBytes{
-			Name:  "qr.png",
-			Bytes: qr,
-		},
-	)
-
-	if _, err := b.app.API().Send(photo); err != nil {
-		log.Println("[BOT] send qr error:", err)
-		return
-	}
-
-	log.Println("[BOT] config + qr sent")
 }

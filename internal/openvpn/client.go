@@ -29,7 +29,7 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	ta, err := os.ReadFile("/etc/openvpn/easy-rsa/ta.key")
+	ta, err := os.ReadFile("/etc/openvpn/ta.key")
 	if err != nil {
 		log.Println("openvpn: read ta.key:", err)
 		return nil, err
@@ -38,16 +38,19 @@ func CreateClient() (*Client, error) {
 	cfg := fmt.Sprintf(`
 client
 dev tun
-proto tcp
-remote 185.253.8.123 443
+proto udp
+remote 185.253.8.123 1194
 resolv-retry infinite
 nobind
 persist-key
 persist-tun
+
 remote-cert-tls server
 cipher AES-256-GCM
 auth SHA256
-key-direction 1
+
+tls-crypt ta.key
+
 verb 3
 
 <ca>
@@ -62,15 +65,17 @@ verb 3
 %s
 </key>
 
-<tls-auth>
+<tls-crypt>
 %s
-</tls-auth>
+</tls-crypt>
 `,
 		ca,
 		cert,
 		key,
 		ta,
 	)
+
+	log.Println("openvpn: client config generated")
 
 	return &Client{Config: cfg}, nil
 }
