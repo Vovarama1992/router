@@ -2,6 +2,7 @@ package openvpn
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -12,21 +13,25 @@ type Client struct {
 func CreateClient() (*Client, error) {
 	ca, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/ca.crt")
 	if err != nil {
+		log.Println("openvpn: read ca.crt:", err)
 		return nil, err
 	}
 
 	cert, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/issued/client.crt")
 	if err != nil {
+		log.Println("openvpn: read client.crt:", err)
 		return nil, err
 	}
 
 	key, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/private/client.key")
 	if err != nil {
+		log.Println("openvpn: read client.key:", err)
 		return nil, err
 	}
 
 	ta, err := os.ReadFile("/etc/openvpn/easy-rsa/ta.key")
 	if err != nil {
+		log.Println("openvpn: read ta.key:", err)
 		return nil, err
 	}
 
@@ -34,7 +39,7 @@ func CreateClient() (*Client, error) {
 client
 dev tun
 proto tcp
-remote YOUR_SERVER_IP 443
+remote 185.253.8.123 443
 resolv-retry infinite
 nobind
 persist-key
@@ -61,7 +66,10 @@ verb 3
 %s
 </tls-auth>
 `,
-		ca, cert, key, ta,
+		ca,
+		cert,
+		key,
+		ta,
 	)
 
 	return &Client{Config: cfg}, nil

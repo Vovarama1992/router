@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"log"
 
 	"router/internal/domain"
 
@@ -46,13 +47,19 @@ func (b *Bot) onMessage(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) sendConfig(chatID int64) {
+	log.Println("[BOT] sendConfig called")
+
 	peer, err := b.svc.CreatePeer(context.Background())
 	if err != nil {
+		log.Printf("[BOT] CreatePeer error: %v", err)
+
 		b.app.API().Send(
 			tgbotapi.NewMessage(chatID, "Ошибка создания конфига"),
 		)
 		return
 	}
+
+	log.Println("[BOT] Config generated, sending file")
 
 	doc := tgbotapi.NewDocument(chatID,
 		tgbotapi.FileBytes{
@@ -62,13 +69,16 @@ func (b *Bot) sendConfig(chatID int64) {
 	)
 	b.app.API().Send(doc)
 
-	qr, _ := qrcode.Encode(peer.Config, qrcode.Medium, 256)
+	qr, err := qrcode.Encode(peer.Config, qrcode.Medium, 256)
+	if err != nil {
+		log.Printf("[BOT] QR error: %v", err)
+		return
+	}
+
 	photo := tgbotapi.NewPhoto(chatID,
-		tgbotapi.FileBytes{Name: "wg.png", Bytes: qr},
+		tgbotapi.FileBytes{Name: "client.png", Bytes: qr},
 	)
 	b.app.API().Send(photo)
 
-	m := tgbotapi.NewMessage(chatID, "Готово. Можешь получить новый конфиг.")
-	m.ReplyMarkup = mainKeyboard()
-	b.app.API().Send(m)
+	log.Println("[BOT] Config sent successfully")
 }
