@@ -56,7 +56,7 @@ func (b *Bot) sendConfig(chatID int64) {
 
 	doc := tgbotapi.NewDocument(chatID,
 		tgbotapi.FileBytes{
-			Name:  "wg.conf",
+			Name:  "client.ovpn",
 			Bytes: []byte(peer.Config),
 		},
 	)
@@ -67,4 +67,8 @@ func (b *Bot) sendConfig(chatID int64) {
 		tgbotapi.FileBytes{Name: "wg.png", Bytes: qr},
 	)
 	b.app.API().Send(photo)
+
+	m := tgbotapi.NewMessage(chatID, "Готово. Можешь получить новый конфиг.")
+	m.ReplyMarkup = mainKeyboard()
+	b.app.API().Send(m)
 }

@@ -1,8 +1,11 @@
+BEGIN;
+
+DROP TABLE IF EXISTS peers;
+
 CREATE TABLE peers (
-    id SERIAL PRIMARY KEY,
-
-    public_key TEXT NOT NULL UNIQUE,
-    vpn_address TEXT NOT NULL UNIQUE,
-
+    id INTEGER PRIMARY KEY,
+    config TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+COMMIT;

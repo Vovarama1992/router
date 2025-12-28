@@ -36,23 +36,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// ---- infra ----
+	// ---- config ----
 	cfg := config.Load()
+
+	// ---- infra ----
 	peerRepo := infra.NewPeerRepo(db)
-	wgApplier := infra.NewWGApplier(cfg.WGInterface)
 
-	vpnService := domain.NewService(cfg, peerRepo, wgApplier)
+	// ---- domain ----
+	vpnService := domain.NewService(cfg, peerRepo)
 
-	// ---- Telegram bot ----
+	// ---- telegram ----
 	app, err := telegram.NewFromEnv()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	bot := telegram.NewBot(app, vpnService)
-
 	go app.Run(ctx, bot.Handle)
-	// ---- HTTP ----
+
+	// ---- http ----
 	vpnHandler := delivery.NewVPNHandler(vpnService)
 
 	r := chi.NewRouter()
