@@ -47,38 +47,45 @@ func (b *Bot) onMessage(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) sendConfig(chatID int64) {
-	log.Println("[BOT] sendConfig called")
-
 	peer, err := b.svc.CreatePeer(context.Background())
 	if err != nil {
-		log.Printf("[BOT] CreatePeer error: %v", err)
-
+		log.Println("[BOT] CreatePeer error:", err)
 		b.app.API().Send(
 			tgbotapi.NewMessage(chatID, "Ошибка создания конфига"),
 		)
 		return
 	}
 
-	log.Println("[BOT] Config generated, sending file")
-
+	// 1. файл
 	doc := tgbotapi.NewDocument(chatID,
 		tgbotapi.FileBytes{
 			Name:  "client.ovpn",
 			Bytes: []byte(peer.Config),
 		},
 	)
-	b.app.API().Send(doc)
+	if _, err := b.app.API().Send(doc); err != nil {
+		log.Println("[BOT] send file error:", err)
+		return
+	}
 
+	// 2. QR
 	qr, err := qrcode.Encode(peer.Config, qrcode.Medium, 256)
 	if err != nil {
-		log.Printf("[BOT] QR error: %v", err)
+		log.Println("[BOT] qr encode error:", err)
 		return
 	}
 
 	photo := tgbotapi.NewPhoto(chatID,
-		tgbotapi.FileBytes{Name: "client.png", Bytes: qr},
+		tgbotapi.FileBytes{
+			Name:  "qr.png",
+			Bytes: qr,
+		},
 	)
-	b.app.API().Send(photo)
 
-	log.Println("[BOT] Config sent successfully")
+	if _, err := b.app.API().Send(photo); err != nil {
+		log.Println("[BOT] send qr error:", err)
+		return
+	}
+
+	log.Println("[BOT] config + qr sent")
 }
