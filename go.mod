@@ -1,6 +1,6 @@
 module router
 
-go 1.25.4
+go 1.22
 
 require (
 	github.com/Vovarama1992/go-utils v0.0.0-20250804130552-742b8209ae83 // indirect
