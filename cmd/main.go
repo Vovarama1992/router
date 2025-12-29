@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 
-	"router/internal/config"
 	"router/internal/delivery"
 	"router/internal/domain"
 	"router/internal/infra"
@@ -36,14 +35,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// ---- config ----
-	cfg := config.Load()
-
 	// ---- infra ----
 	peerRepo := infra.NewPeerRepo(db)
 
 	// ---- domain ----
-	vpnService := domain.NewService(cfg, peerRepo)
+	vpnService := domain.NewService(peerRepo)
 
 	// ---- telegram ----
 	app, err := telegram.NewFromEnv()

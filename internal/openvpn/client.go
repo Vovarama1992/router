@@ -4,77 +4,66 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 type Client struct {
 	Config string
 }
 
-func CreateClient() (*Client, error) {
+func CreatePeer(name string) (*Client, error) {
+	cmd := exec.Command(
+		"/etc/openvpn/easy-rsa/easyrsa",
+		"build-client-full",
+		name,
+		"nopass",
+	)
+	cmd.Dir = "/etc/openvpn/easy-rsa"
+	cmd.Env = append(os.Environ(), "EASYRSA_BATCH=1")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("[openvpn] easy-rsa failed (%s): %s", name, out)
+		return nil, fmt.Errorf("easy-rsa error: %w", err)
+	}
+
 	ca, err := os.ReadFile("/etc/openvpn/ca.crt")
 	if err != nil {
-		log.Println("openvpn: read ca.crt:", err)
+		log.Printf("[openvpn] read ca.crt failed: %v", err)
 		return nil, err
 	}
 
-	cert, err := os.ReadFile("/etc/openvpn/client.crt")
+	cert, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/issued/" + name + ".crt")
 	if err != nil {
-		log.Println("openvpn: read client.crt:", err)
+		log.Printf("[openvpn] read cert failed (%s): %v", name, err)
 		return nil, err
 	}
 
-	key, err := os.ReadFile("/etc/openvpn/client.key")
+	key, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/private/" + name + ".key")
 	if err != nil {
-		log.Println("openvpn: read client.key:", err)
+		log.Printf("[openvpn] read key failed (%s): %v", name, err)
 		return nil, err
 	}
 
-	ta, err := os.ReadFile("/etc/openvpn/ta.key")
+	tls, err := os.ReadFile("/etc/openvpn/ta.key")
 	if err != nil {
-		log.Println("openvpn: read ta.key:", err)
+		log.Printf("[openvpn] read tls key failed: %v", err)
 		return nil, err
 	}
 
-	cfg := fmt.Sprintf(`
-client
-dev tun
-proto tcp
-remote 185.253.8.123 443
+	tpl, err := os.ReadFile("internal/configs/client.conf")
+	if err != nil {
+		log.Printf("[openvpn] read template failed: %v", err)
+		return nil, err
+	}
 
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-
-remote-cert-tls server
-cipher AES-256-GCM
-auth SHA256
-key-direction 1
-verb 3
-
-<ca>
-%s
-</ca>
-
-<cert>
-%s
-</cert>
-
-<key>
-%s
-</key>
-
-<tls-auth>
-%s
-</tls-auth>
-`,
-		ca,
-		cert,
-		key,
-		ta,
-	)
-
-	log.Println("openvpn: client config generated")
+	cfg := string(tpl)
+	cfg = strings.ReplaceAll(cfg, "{{PEER_NAME}}", name)
+	cfg = strings.ReplaceAll(cfg, "{{SERVER_IP}}", "185.253.8.123")
+	cfg = strings.ReplaceAll(cfg, "{{CA}}", string(ca))
+	cfg = strings.ReplaceAll(cfg, "{{CERT}}", string(cert))
+	cfg = strings.ReplaceAll(cfg, "{{KEY}}", string(key))
+	cfg = strings.ReplaceAll(cfg, "{{TLS}}", string(tls))
 
 	return &Client{Config: cfg}, nil
 }
