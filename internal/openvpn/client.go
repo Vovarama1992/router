@@ -13,6 +13,8 @@ type Client struct {
 }
 
 func CreatePeer(name string) (*Client, error) {
+	log.Printf("[vpn] CreatePeer start: name=%s", name)
+
 	cmd := exec.Command(
 		"/etc/openvpn/easy-rsa/easyrsa",
 		"build-client-full",
@@ -23,37 +25,45 @@ func CreatePeer(name string) (*Client, error) {
 	cmd.Env = append(os.Environ(), "EASYRSA_BATCH=1")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Printf("[openvpn] easy-rsa failed (%s): %s", name, out)
+		log.Printf("[vpn] easyrsa error (%s): %s", name, out)
 		return nil, fmt.Errorf("easy-rsa error: %w", err)
 	}
+	log.Printf("[vpn] easyrsa OK for %s", name)
 
-	ca, err := os.ReadFile("/etc/openvpn/ca.crt")
+	read := func(path string) ([]byte, error) {
+		log.Printf("[vpn] read file: %s", path)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			log.Printf("[vpn] read FAILED: %s: %v", path, err)
+			return nil, err
+		}
+		log.Printf("[vpn] read OK: %s (%d bytes)", path, len(b))
+		return b, nil
+	}
+
+	ca, err := read("/etc/openvpn/ca.crt")
 	if err != nil {
-		log.Printf("[openvpn] read ca.crt failed: %v", err)
 		return nil, err
 	}
 
-	cert, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/issued/" + name + ".crt")
+	cert, err := read("/etc/openvpn/easy-rsa/pki/issued/" + name + ".crt")
 	if err != nil {
-		log.Printf("[openvpn] read cert failed (%s): %v", name, err)
 		return nil, err
 	}
 
-	key, err := os.ReadFile("/etc/openvpn/easy-rsa/pki/private/" + name + ".key")
+	key, err := read("/etc/openvpn/easy-rsa/pki/private/" + name + ".key")
 	if err != nil {
-		log.Printf("[openvpn] read key failed (%s): %v", name, err)
 		return nil, err
 	}
 
-	tls, err := os.ReadFile("/etc/openvpn/ta.key")
+	tls, err := read("/etc/openvpn/ta.key")
 	if err != nil {
-		log.Printf("[openvpn] read tls key failed: %v", err)
 		return nil, err
 	}
 
-	tpl, err := os.ReadFile("internal/configs/client.conf")
+	tplPath := "internal/configs/client.conf"
+	tpl, err := read(tplPath)
 	if err != nil {
-		log.Printf("[openvpn] read template failed: %v", err)
 		return nil, err
 	}
 
@@ -64,6 +74,8 @@ func CreatePeer(name string) (*Client, error) {
 	cfg = strings.ReplaceAll(cfg, "{{CERT}}", string(cert))
 	cfg = strings.ReplaceAll(cfg, "{{KEY}}", string(key))
 	cfg = strings.ReplaceAll(cfg, "{{TLS}}", string(tls))
+
+	log.Printf("[vpn] client config built: %d bytes", len(cfg))
 
 	return &Client{Config: cfg}, nil
 }
