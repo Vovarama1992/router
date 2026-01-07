@@ -19,8 +19,16 @@ const (
 	serverIP = "185.253.8.123"
 )
 
-func CreatePeer(name string) (*Client, error) {
-	log.Printf("[vpn] CreatePeer start: name=%s", name)
+// transport:
+// ""      -> UDP (по умолчанию)
+// "udp"   -> UDP
+// "tcp"   -> TCP
+func CreatePeer(name string, transport string) (*Client, error) {
+	if transport == "" {
+		transport = "udp"
+	}
+
+	log.Printf("[vpn] CreatePeer start: name=%s transport=%s", name, transport)
 
 	keyPath := pkiDir + "/private/" + name + ".key"
 	csrPath := pkiDir + "/reqs/" + name + ".csr"
@@ -36,11 +44,7 @@ func CreatePeer(name string) (*Client, error) {
 	}
 
 	// 1) private key
-	if err := run(exec.Command(
-		"openssl", "genrsa",
-		"-out", keyPath,
-		"2048",
-	)); err != nil {
+	if err := run(exec.Command("openssl", "genrsa", "-out", keyPath, "2048")); err != nil {
 		return nil, err
 	}
 
@@ -54,7 +58,7 @@ func CreatePeer(name string) (*Client, error) {
 		return nil, err
 	}
 
-	// 3) sign cert (PEM)
+	// 3) sign cert
 	if err := run(exec.Command(
 		"openssl", "x509", "-req",
 		"-in", csrPath,
@@ -69,11 +73,7 @@ func CreatePeer(name string) (*Client, error) {
 	}
 
 	read := func(path string) ([]byte, error) {
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
+		return os.ReadFile(path)
 	}
 
 	ca, err := read(caPath)
@@ -93,7 +93,17 @@ func CreatePeer(name string) (*Client, error) {
 		return nil, err
 	}
 
-	tpl, err := read("internal/configs/client.conf")
+	var tplPath string
+	switch transport {
+	case "udp":
+		tplPath = "internal/configs/client_udp.conf"
+	case "tcp":
+		tplPath = "internal/configs/client.conf"
+	default:
+		return nil, fmt.Errorf("unknown transport: %s", transport)
+	}
+
+	tpl, err := read(tplPath)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +116,6 @@ func CreatePeer(name string) (*Client, error) {
 	cfg = strings.ReplaceAll(cfg, "{{KEY}}", string(key))
 	cfg = strings.ReplaceAll(cfg, "{{TLS}}", string(tls))
 
-	log.Printf("[vpn] client config built: %d bytes", len(cfg))
+	log.Printf("[vpn] client config built: %d bytes (%s)", len(cfg), transport)
 	return &Client{Config: cfg}, nil
 }
