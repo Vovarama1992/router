@@ -37,7 +37,7 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 	name := fmt.Sprintf("peer_%d", count+1)
 	log.Printf("[domain] peer name=%s", name)
 
-	client, err := openvpn.CreatePeer(name, "udp")
+	client, err := openvpn.CreatePeer(name, "tcp")
 	if err != nil {
 		log.Printf("[domain] openvpn.CreatePeer FAILED name=%s err=%v", name, err)
 		return nil, err

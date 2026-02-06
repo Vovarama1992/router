@@ -16,7 +16,7 @@ type Client struct {
 const (
 	pkiDir   = "/etc/openvpn/easy-rsa/pki"
 	caPath   = "/etc/openvpn/ca.crt"
-	tlsPath  = "/etc/openvpn/ta.key"
+	tlsPath  = "/etc/openvpn/tls-crypt.key"
 	serverIP = "185.253.8.123"
 )
 
