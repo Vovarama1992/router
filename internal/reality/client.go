@@ -22,21 +22,6 @@ type Client struct {
 	Link string
 }
 
-type xrayConfig struct {
-	Inbounds []struct {
-		StreamSettings struct {
-			RealitySettings struct {
-				PrivateKey string `json:"privateKey"`
-			} `json:"realitySettings"`
-		} `json:"streamSettings"`
-		Settings struct {
-			Clients []struct {
-				ID string `json:"id"`
-			} `json:"clients"`
-		} `json:"settings"`
-	} `json:"inbounds"`
-}
-
 func parsePublicKey(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		line = strings.TrimSpace(line)
@@ -52,6 +37,15 @@ func parsePublicKey(s string) string {
 	return ""
 }
 
+func getPublicKey() (string, error) {
+	cmd := exec.Command("xray", "x25519")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return parsePublicKey(string(out)), nil
+}
+
 func CreateClient() (*Client, error) {
 	id := uuid.New().String()
 
@@ -60,30 +54,22 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	var cfg xrayConfig
+	var cfg map[string]interface{}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 
-	priv := cfg.Inbounds[0].StreamSettings.RealitySettings.PrivateKey
+	inbounds := cfg["inbounds"].([]interface{})
+	inb := inbounds[0].(map[string]interface{})
 
-	cmd := exec.Command("xray", "x25519", "-i", priv)
-	outCmd, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
+	settings := inb["settings"].(map[string]interface{})
+	clients := settings["clients"].([]interface{})
 
-	pub := parsePublicKey(string(outCmd))
-	if pub == "" {
-		return nil, fmt.Errorf("failed to parse public key")
-	}
+	clients = append(clients, map[string]interface{}{
+		"id": id,
+	})
 
-	cfg.Inbounds[0].Settings.Clients = append(
-		cfg.Inbounds[0].Settings.Clients,
-		struct {
-			ID string `json:"id"`
-		}{ID: id},
-	)
+	settings["clients"] = clients
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -94,8 +80,10 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	cmdRestart := exec.Command("systemctl", "restart", "xray")
-	if err := cmdRestart.Run(); err != nil {
+	exec.Command("systemctl", "restart", "xray").Run()
+
+	pbk, err := getPublicKey()
+	if err != nil {
 		return nil, err
 	}
 
@@ -104,7 +92,7 @@ func CreateClient() (*Client, error) {
 		id,
 		server,
 		sni,
-		pub,
+		pbk,
 		sid,
 	)
 
