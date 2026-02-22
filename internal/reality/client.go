@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -13,7 +14,6 @@ const (
 	configPath = "/usr/local/etc/xray/config.json"
 	server     = "185.253.8.123"
 	sni        = "www.cloudflare.com"
-	pbk        = "HRFMnOZqUdMPoOeCqlC9uFdPbLTUeGp66AcM-LG0Bd0"
 	sid        = "eee842cbf9f8e299"
 )
 
@@ -24,12 +24,26 @@ type Client struct {
 
 type xrayConfig struct {
 	Inbounds []struct {
+		StreamSettings struct {
+			RealitySettings struct {
+				PrivateKey string `json:"privateKey"`
+			} `json:"realitySettings"`
+		} `json:"streamSettings"`
 		Settings struct {
 			Clients []struct {
 				ID string `json:"id"`
 			} `json:"clients"`
 		} `json:"settings"`
 	} `json:"inbounds"`
+}
+
+func parsePublicKey(s string) string {
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(line, "PublicKey:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "PublicKey:"))
+		}
+	}
+	return ""
 }
 
 func CreateClient() (*Client, error) {
@@ -43,6 +57,19 @@ func CreateClient() (*Client, error) {
 	var cfg xrayConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
+	}
+
+	priv := cfg.Inbounds[0].StreamSettings.RealitySettings.PrivateKey
+
+	cmd := exec.Command("xray", "x25519", "-i", priv)
+	outCmd, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	pub := parsePublicKey(string(outCmd))
+	if pub == "" {
+		return nil, fmt.Errorf("failed to parse public key")
 	}
 
 	cfg.Inbounds[0].Settings.Clients = append(
@@ -61,8 +88,8 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("systemctl", "restart", "xray")
-	if err := cmd.Run(); err != nil {
+	cmdRestart := exec.Command("systemctl", "restart", "xray")
+	if err := cmdRestart.Run(); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +98,7 @@ func CreateClient() (*Client, error) {
 		id,
 		server,
 		sni,
-		pbk,
+		pub,
 		sid,
 	)
 
