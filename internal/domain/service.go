@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"router/internal/infra"
-	"router/internal/openvpn"
+	"router/internal/reality"
 )
 
 type Peer struct {
-	Config string
+	Link string
 }
 
 type Service struct {
@@ -37,22 +37,23 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 	name := fmt.Sprintf("peer_%d", count+1)
 	log.Printf("[domain] peer name=%s", name)
 
-	client, err := openvpn.CreatePeer(name, "tcp")
+	client, err := reality.CreateClient()
 	if err != nil {
-		log.Printf("[domain] openvpn.CreatePeer FAILED name=%s err=%v", name, err)
+		log.Printf("[domain] reality.CreateClient FAILED err=%v", err)
 		return nil, err
 	}
-	log.Printf("[domain] openvpn.CreatePeer OK name=%s", name)
 
-	if err := s.repo.Save(ctx, count+1, name); err != nil {
-		log.Printf("[domain] repo.Save FAILED id=%d name=%s err=%v", count+1, name, err)
+	log.Printf("[domain] reality.CreateClient OK uuid=%s", client.UUID)
+
+	if err := s.repo.Save(ctx, count+1, client.UUID); err != nil {
+		log.Printf("[domain] repo.Save FAILED id=%d uuid=%s err=%v", count+1, client.UUID, err)
 		return nil, err
 	}
-	log.Printf("[domain] repo.Save OK id=%d name=%s", count+1, name)
+	log.Printf("[domain] repo.Save OK id=%d uuid=%s", count+1, client.UUID)
 
-	log.Printf("[domain] CreatePeer done name=%s duration=%s", name, time.Since(start))
+	log.Printf("[domain] CreatePeer done uuid=%s duration=%s", client.UUID, time.Since(start))
 
 	return &Peer{
-		Config: client.Config,
+		Link: client.Link,
 	}, nil
 }

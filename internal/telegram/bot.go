@@ -23,42 +23,25 @@ func NewBot(app *App, svc *domain.Service) *Bot {
 }
 
 func (b *Bot) Handle(update tgbotapi.Update) {
-	log.Printf(
-		"[tg] update received hasMessage=%v",
-		update.Message != nil,
-	)
-
 	if update.Message != nil {
 		b.onMessage(update.Message)
-		return
 	}
 }
 
 func (b *Bot) onMessage(msg *tgbotapi.Message) {
-	log.Printf(
-		"[tg] message chatID=%d user=%s text=%q",
-		msg.Chat.ID,
-		msg.From.UserName,
-		msg.Text,
-	)
+	log.Printf("[tg] chat=%d text=%q", msg.Chat.ID, msg.Text)
 
 	if msg.Text == "/start" {
-		log.Printf("[tg] /start chatID=%d", msg.Chat.ID)
-
 		m := tgbotapi.NewMessage(
 			msg.Chat.ID,
-			"Нажми кнопку ниже, чтобы получить VPN-конфиг",
+			"Нажми кнопку, чтобы получить конфиг",
 		)
 		m.ReplyMarkup = mainKeyboard()
-
-		if _, err := b.app.API().Send(m); err != nil {
-			log.Printf("[tg] send /start FAILED chatID=%d err=%v", msg.Chat.ID, err)
-		}
+		b.app.API().Send(m)
 		return
 	}
 
 	if msg.Text == "Получить конфиг" {
-		log.Printf("[tg] get config pressed chatID=%d", msg.Chat.ID)
 		b.sendConfig(msg.Chat.ID)
 	}
 }
@@ -77,18 +60,15 @@ func (b *Bot) sendConfig(chatID int64) {
 		return
 	}
 
-	log.Printf("[tg] CreatePeer OK chatID=%d configBytes=%d", chatID, len(peer.Config))
+	log.Printf("[tg] CreatePeer OK chatID=%d link=%s", chatID, peer.Link)
 
-	doc := tgbotapi.NewDocument(
+	msg := tgbotapi.NewMessage(
 		chatID,
-		tgbotapi.FileBytes{
-			Name:  "client.ovpn",
-			Bytes: []byte(peer.Config),
-		},
+		"Импортируй ссылку в клиент:\n\n"+peer.Link,
 	)
 
-	if _, err := b.app.API().Send(doc); err != nil {
-		log.Printf("[tg] send file FAILED chatID=%d err=%v", chatID, err)
+	if _, err := b.app.API().Send(msg); err != nil {
+		log.Printf("[tg] send message FAILED chatID=%d err=%v", chatID, err)
 		return
 	}
 
