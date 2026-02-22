@@ -39,6 +39,12 @@ type xrayConfig struct {
 
 func parsePublicKey(s string) string {
 	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+
+		if strings.HasPrefix(line, "Password:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "Password:"))
+		}
+
 		if strings.HasPrefix(line, "PublicKey:") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "PublicKey:"))
 		}
