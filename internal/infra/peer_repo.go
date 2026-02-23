@@ -56,3 +56,56 @@ func (r *PeerRepo) Count(ctx context.Context) (int, error) {
 	log.Printf("[repo] Count OK count=%d duration=%s", cnt, time.Since(start))
 	return cnt, nil
 }
+
+func (r *PeerRepo) GetLastUUID(ctx context.Context) (string, error) {
+	start := time.Now()
+
+	log.Printf("[repo] GetLastUUID start")
+
+	var uuid string
+
+	err := r.db.QueryRowContext(
+		ctx,
+		`SELECT config FROM peers ORDER BY id DESC LIMIT 1`,
+	).Scan(&uuid)
+
+	if err == sql.ErrNoRows {
+		log.Printf("[repo] GetLastUUID empty duration=%s", time.Since(start))
+		return "", nil
+	}
+
+	if err != nil {
+		log.Printf("[repo] GetLastUUID FAILED err=%v", err)
+		return "", err
+	}
+
+	log.Printf("[repo] GetLastUUID OK uuid=%s duration=%s", uuid, time.Since(start))
+
+	return uuid, nil
+}
+
+func (r *PeerRepo) GetByID(ctx context.Context, id int) (string, error) {
+	start := time.Now()
+
+	log.Printf("[repo] GetByID start id=%d", id)
+
+	var config string
+
+	err := r.db.QueryRowContext(
+		ctx,
+		`SELECT config FROM peers WHERE id = $1`,
+		id,
+	).Scan(&config)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("[repo] GetByID no rows id=%d", id)
+			return "", nil
+		}
+		log.Printf("[repo] GetByID FAILED id=%d err=%v", id, err)
+		return "", err
+	}
+
+	log.Printf("[repo] GetByID OK id=%d duration=%s", id, time.Since(start))
+	return config, nil
+}

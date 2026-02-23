@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -32,10 +31,18 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 		log.Printf("[domain] repo.Count FAILED err=%v", err)
 		return nil, err
 	}
-	log.Printf("[domain] repo.Count OK count=%d", count)
 
-	name := fmt.Sprintf("peer_%d", count+1)
-	log.Printf("[domain] peer name=%s", name)
+	// проверяем — есть ли уже UUID
+	existingUUID, err := s.repo.GetByID(ctx, count)
+	if err == nil && existingUUID != "" {
+		log.Printf("[domain] peer already exists uuid=%s", existingUUID)
+
+		link := reality.BuildLink(existingUUID)
+
+		return &Peer{
+			Link: link,
+		}, nil
+	}
 
 	client, err := reality.CreateClient()
 	if err != nil {
@@ -43,13 +50,10 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 		return nil, err
 	}
 
-	log.Printf("[domain] reality.CreateClient OK uuid=%s", client.UUID)
-
 	if err := s.repo.Save(ctx, count+1, client.UUID); err != nil {
-		log.Printf("[domain] repo.Save FAILED id=%d uuid=%s err=%v", count+1, client.UUID, err)
+		log.Printf("[domain] repo.Save FAILED err=%v", err)
 		return nil, err
 	}
-	log.Printf("[domain] repo.Save OK id=%d uuid=%s", count+1, client.UUID)
 
 	log.Printf("[domain] CreatePeer done uuid=%s duration=%s", client.UUID, time.Since(start))
 
