@@ -26,18 +26,20 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 
 	log.Printf("[domain] CreatePeer start")
 
-	count, err := s.repo.Count(ctx)
+	lastUUID, err := s.repo.GetLastUUID(ctx)
 	if err != nil {
-		log.Printf("[domain] repo.Count FAILED err=%v", err)
+		log.Printf("[domain] repo.GetLastUUID FAILED err=%v", err)
 		return nil, err
 	}
 
-	// проверяем — есть ли уже UUID
-	existingUUID, err := s.repo.GetByID(ctx, count)
-	if err == nil && existingUUID != "" {
-		log.Printf("[domain] peer already exists uuid=%s", existingUUID)
+	if lastUUID != "" {
+		log.Printf("[domain] reuse existing uuid=%s", lastUUID)
 
-		link := reality.BuildLink(existingUUID)
+		link, err := reality.BuildLink(lastUUID)
+		if err != nil {
+			log.Printf("[domain] BuildLink FAILED err=%v", err)
+			return nil, err
+		}
 
 		return &Peer{
 			Link: link,
@@ -47,6 +49,12 @@ func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
 	client, err := reality.CreateClient()
 	if err != nil {
 		log.Printf("[domain] reality.CreateClient FAILED err=%v", err)
+		return nil, err
+	}
+
+	count, err := s.repo.Count(ctx)
+	if err != nil {
+		log.Printf("[domain] repo.Count FAILED err=%v", err)
 		return nil, err
 	}
 
