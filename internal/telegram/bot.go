@@ -64,7 +64,7 @@ func (b *Bot) sendConfig(chatID int64) {
 
 	msg := tgbotapi.NewMessage(
 		chatID,
-		"Импортируй ссылку в клиент:\n\n"+peer.Link,
+		peer.Link,
 	)
 
 	if _, err := b.app.API().Send(msg); err != nil {
