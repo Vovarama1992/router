@@ -21,45 +21,35 @@ func NewService(repo *infra.PeerRepo) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreatePeer(ctx context.Context) (*Peer, error) {
+func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, error) {
 	start := time.Now()
 
-	log.Printf("[domain] CreatePeer start")
+	log.Printf("[domain] CreatePeer start tg=%d", telegramID)
 
-	lastUUID, err := s.repo.GetLastUUID(ctx)
+	// 1 — проверяем есть ли уже
+	existing, err := s.repo.GetByTelegramID(ctx, telegramID)
 	if err != nil {
-		log.Printf("[domain] repo.GetLastUUID FAILED err=%v", err)
 		return nil, err
 	}
 
-	if lastUUID != "" {
-		log.Printf("[domain] reuse existing uuid=%s", lastUUID)
-
-		link, err := reality.BuildLink(lastUUID)
+	if existing != nil {
+		link, err := reality.BuildLink(existing.UUID)
 		if err != nil {
-			log.Printf("[domain] BuildLink FAILED err=%v", err)
 			return nil, err
 		}
 
-		return &Peer{
-			Link: link,
-		}, nil
+		log.Printf("[domain] reuse uuid=%s", existing.UUID)
+
+		return &Peer{Link: link}, nil
 	}
 
+	// 2 — создаём нового клиента
 	client, err := reality.CreateClient()
 	if err != nil {
-		log.Printf("[domain] reality.CreateClient FAILED err=%v", err)
 		return nil, err
 	}
 
-	count, err := s.repo.Count(ctx)
-	if err != nil {
-		log.Printf("[domain] repo.Count FAILED err=%v", err)
-		return nil, err
-	}
-
-	if err := s.repo.Save(ctx, count+1, client.UUID); err != nil {
-		log.Printf("[domain] repo.Save FAILED err=%v", err)
+	if err := s.repo.Create(ctx, client.UUID, telegramID); err != nil {
 		return nil, err
 	}
 

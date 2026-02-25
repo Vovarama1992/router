@@ -49,28 +49,27 @@ func (b *Bot) onMessage(msg *tgbotapi.Message) {
 func (b *Bot) sendConfig(chatID int64) {
 	start := time.Now()
 
-	log.Printf("[tg] sendConfig start chatID=%d", chatID)
-
-	peer, err := b.svc.CreatePeer(context.Background())
+	peer, err := b.svc.CreatePeer(context.Background(), chatID)
 	if err != nil {
-		log.Printf("[tg] CreatePeer FAILED chatID=%d err=%v", chatID, err)
 		b.app.API().Send(
 			tgbotapi.NewMessage(chatID, "Ошибка создания конфига"),
 		)
 		return
 	}
 
-	log.Printf("[tg] CreatePeer OK chatID=%d link=%s", chatID, peer.Link)
+	instruction := `Сейчас отправлю ссылку отдельным сообщением.
+Как подключиться:
+Android — установите Hiddify из Google Play.
+iPhone — установите Streisand из App Store.
+Компьютер — установите Hiddify: https://hiddify.org/en/download-hiddify/
+После установки:
+Скопируйте ссылку
+Откройте приложение
+Нажмите «Создать подключение»
+Выберите «Импорт из буфера обмена»`
 
-	msg := tgbotapi.NewMessage(
-		chatID,
-		peer.Link,
-	)
-
-	if _, err := b.app.API().Send(msg); err != nil {
-		log.Printf("[tg] send message FAILED chatID=%d err=%v", chatID, err)
-		return
-	}
+	b.app.API().Send(tgbotapi.NewMessage(chatID, instruction))
+	b.app.API().Send(tgbotapi.NewMessage(chatID, peer.Link))
 
 	log.Printf("[tg] sendConfig done chatID=%d duration=%s", chatID, time.Since(start))
 }

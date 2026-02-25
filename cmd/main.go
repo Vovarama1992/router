@@ -4,13 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 
-	"router/internal/delivery"
 	"router/internal/domain"
 	"router/internal/infra"
 	"router/internal/telegram"
@@ -50,16 +47,7 @@ func main() {
 	bot := telegram.NewBot(app, vpnService)
 	go app.Run(ctx, bot.Handle)
 
-	// ---- http ----
-	vpnHandler := delivery.NewVPNHandler(vpnService)
-
-	r := chi.NewRouter()
-	delivery.RegisterVPNRoutes(r, vpnHandler)
-
 	addr := ":8080"
 	log.Println("router: listening on", addr)
 
-	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatal(err)
-	}
 }
