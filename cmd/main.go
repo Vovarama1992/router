@@ -50,4 +50,6 @@ func main() {
 	addr := ":8080"
 	log.Println("router: listening on", addr)
 
+	select {}
+
 }
