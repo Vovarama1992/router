@@ -40,3 +40,63 @@ func (r *PeerRepo) Create(ctx context.Context, uuid string, tgID int64) error {
 	`, uuid, tgID)
 	return err
 }
+
+func (r *PeerRepo) List(ctx context.Context) ([]models.Peer, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, uuid, telegram_id, connection_status, created_at
+		FROM peers
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var peers []models.Peer
+
+	for rows.Next() {
+		var p models.Peer
+		if err := rows.Scan(
+			&p.ID,
+			&p.UUID,
+			&p.TelegramID,
+			&p.ConnectionStatus,
+			&p.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		peers = append(peers, p)
+	}
+
+	return peers, nil
+}
+
+func (r *PeerRepo) ListByTelegramID(ctx context.Context, tgID int64) ([]models.Peer, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, uuid, telegram_id, connection_status, created_at
+		FROM peers
+		WHERE telegram_id = $1
+	`, tgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var peers []models.Peer
+
+	for rows.Next() {
+		var p models.Peer
+		if err := rows.Scan(
+			&p.ID,
+			&p.UUID,
+			&p.TelegramID,
+			&p.ConnectionStatus,
+			&p.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		peers = append(peers, p)
+	}
+
+	return peers, nil
+}

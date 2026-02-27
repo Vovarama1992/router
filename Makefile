@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: refresh build run restart stop status logs commit migrate db
+.PHONY: refresh build run restart stop status logs commit migrate db build-front
 
 APP_NAME=router
 BIN=./bin/router
@@ -44,3 +44,11 @@ migrate:
 db:
 	@set -a; source $(ENV_FILE); set +a; \
 	psql "$$DATABASE_URL"
+
+build-front:
+	cd ../router-front && \
+	npm install && \
+	npm run build && \
+	rm -rf ./front-dist/* && \
+	mkdir -p ./front-dist && \
+	cp -r ../router-front/dist/* ./front-dist/

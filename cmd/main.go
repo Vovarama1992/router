@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net/http"
 	"os"
 
 	_ "github.com/lib/pq"
 
+	"router/internal/delivery"
 	"router/internal/domain"
 	"router/internal/infra"
 	"router/internal/telegram"
@@ -47,9 +49,14 @@ func main() {
 	bot := telegram.NewBot(app, vpnService)
 	go app.Run(ctx, bot.Handle)
 
+	// ---- delivery (API + admin UI) ----
+	handlers := delivery.NewHandlers(vpnService)
+	router := delivery.NewRouter(handlers)
+
 	addr := ":8080"
 	log.Println("router: listening on", addr)
 
-	select {}
-
+	if err := http.ListenAndServe(addr, router.Handler()); err != nil {
+		log.Fatal(err)
+	}
 }
