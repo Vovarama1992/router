@@ -53,7 +53,7 @@ func RemoveClients(uuids []string) error {
 		return err
 	}
 
-	exec.Command("systemctl", "restart", "xray").Run()
+	go exec.Command("systemctl", "restart", "xray").Run()
 
 	return nil
 }
