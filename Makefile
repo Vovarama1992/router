@@ -48,7 +48,8 @@ db:
 build-front:
 	cd ../router-front && \
 	npm install && \
-	npm run build && \
-	rm -rf ./front-dist/* && \
-	mkdir -p ./front-dist && \
-	cp -r ../router-front/dist/* ./front-dist/
+	npm run build
+
+	rm -rf front-dist/*
+	mkdir -p front-dist
+	cp -r ../router-front/dist/* front-dist/

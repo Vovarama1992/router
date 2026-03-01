@@ -85,7 +85,6 @@ func (s *Service) ListPeers(ctx context.Context) ([]PeerInfo, error) {
 }
 
 func (s *Service) DisableByTelegramID(ctx context.Context, telegramID int64) error {
-	// 1 — получаем все UUID пользователя
 	peers, err := s.repo.ListByTelegramID(ctx, telegramID)
 	if err != nil {
 		return err
@@ -100,8 +99,13 @@ func (s *Service) DisableByTelegramID(ctx context.Context, telegramID int64) err
 		uuids = append(uuids, p.UUID)
 	}
 
-	// 2 — удалить из config
+	// 1 — удаляем из xray
 	if err := reality.RemoveClients(uuids); err != nil {
+		return err
+	}
+
+	// 2 — удаляем из БД
+	if err := s.repo.DeleteByTelegramID(ctx, telegramID); err != nil {
 		return err
 	}
 

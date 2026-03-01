@@ -100,3 +100,11 @@ func (r *PeerRepo) ListByTelegramID(ctx context.Context, tgID int64) ([]models.P
 
 	return peers, nil
 }
+
+func (r *PeerRepo) DeleteByTelegramID(ctx context.Context, tgID int64) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM peers
+		WHERE telegram_id = $1
+	`, tgID)
+	return err
+}
