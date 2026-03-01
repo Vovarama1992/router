@@ -18,46 +18,54 @@ func AddClient(uuid string) error {
 		return err
 	}
 
-	inbounds, ok := cfg["inbounds"].([]interface{})
+	inboundsRaw, ok := cfg["inbounds"].([]interface{})
 	if !ok {
 		return fmt.Errorf("invalid inbounds")
 	}
 
-	var vpnInbound map[string]interface{}
+	var inbound map[string]interface{}
 
-	for _, ib := range inbounds {
-		inb := ib.(map[string]interface{})
-		if inb["tag"] == "vpn" {
-			vpnInbound = inb
+	for _, ib := range inboundsRaw {
+		m, ok := ib.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if tag, _ := m["tag"].(string); tag == "vpn" {
+			inbound = m
 			break
 		}
 	}
 
-	if vpnInbound == nil {
+	if inbound == nil {
 		return fmt.Errorf("vpn inbound not found")
 	}
 
-	settings := vpnInbound["settings"].(map[string]interface{})
-	clientsRaw, ok := settings["clients"].([]interface{})
+	settings, ok := inbound["settings"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("clients not found")
+		return fmt.Errorf("invalid settings")
 	}
 
-	// Проверим, нет ли уже такого клиента
-	for _, c := range clientsRaw {
-		client := c.(map[string]interface{})
-		if client["id"] == uuid {
-			return nil // уже есть
+	var clients []interface{}
+
+	if raw := settings["clients"]; raw != nil {
+		if arr, ok := raw.([]interface{}); ok {
+			clients = arr
 		}
 	}
 
-	newClient := map[string]interface{}{
-		"id":    uuid,
-		"level": 0,
-		"email": uuid,
+	// не добавляем дубликат
+	for _, c := range clients {
+		m, ok := c.(map[string]interface{})
+		if ok && m["id"] == uuid {
+			return nil
+		}
 	}
 
-	settings["clients"] = append(clientsRaw, newClient)
+	clients = append(clients, map[string]interface{}{
+		"id": uuid,
+	})
+
+	settings["clients"] = clients
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -68,9 +76,5 @@ func AddClient(uuid string) error {
 		return err
 	}
 
-	go func() {
-		_ = exec.Command("systemctl", "restart", "xray").Run()
-	}()
-
-	return nil
+	return exec.Command("systemctl", "restart", "xray").Run()
 }
