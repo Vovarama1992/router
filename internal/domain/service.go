@@ -2,12 +2,13 @@ package domain
 
 import (
 	"context"
-	"log"
-	"time"
+	"errors"
 
 	"router/internal/infra"
 	"router/internal/reality"
 )
+
+var ErrAccessDisabled = errors.New("access disabled")
 
 type Peer struct {
 	Link string
@@ -22,25 +23,14 @@ func NewService(repo *infra.PeerRepo) *Service {
 }
 
 func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, error) {
-	start := time.Now()
-
-	log.Printf("[domain] CreatePeer start tg=%d", telegramID)
-
 	existing, err := s.repo.GetByTelegramID(ctx, telegramID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Если уже есть запись
 	if existing != nil {
-		// Если был отключён — реактивируем
 		if !existing.IsActive {
-			if err := reality.AddClient(existing.UUID); err != nil {
-				return nil, err
-			}
-			if err := s.repo.SetActive(ctx, telegramID, true); err != nil {
-				return nil, err
-			}
+			return nil, ErrAccessDisabled
 		}
 
 		link, err := reality.BuildLink(existing.UUID)
@@ -48,12 +38,9 @@ func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, erro
 			return nil, err
 		}
 
-		log.Printf("[domain] reuse uuid=%s", existing.UUID)
-
 		return &Peer{Link: link}, nil
 	}
 
-	// Создаём нового
 	client, err := reality.CreateClient()
 	if err != nil {
 		return nil, err
@@ -63,11 +50,7 @@ func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, erro
 		return nil, err
 	}
 
-	log.Printf("[domain] CreatePeer done uuid=%s duration=%s", client.UUID, time.Since(start))
-
-	return &Peer{
-		Link: client.Link,
-	}, nil
+	return &Peer{Link: client.Link}, nil
 }
 
 type PeerInfo struct {
