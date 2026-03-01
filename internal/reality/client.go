@@ -82,46 +82,48 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	inboundsRaw, ok := cfg["inbounds"].([]interface{})
+	inboundsRaw, ok := cfg["inbounds"]
 	if !ok {
-		return nil, fmt.Errorf("invalid inbounds")
+		return nil, fmt.Errorf("inbounds not found")
+	}
+
+	inbounds, ok := inboundsRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid inbounds format")
 	}
 
 	var inbound map[string]interface{}
 
-	// ищем inbound с reality (а не первый попавшийся)
-	for _, ib := range inboundsRaw {
+	for _, ib := range inbounds {
 		m, ok := ib.(map[string]interface{})
 		if !ok {
 			continue
 		}
-
-		stream, ok := m["streamSettings"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		if stream["security"] == "reality" {
+		if tag, _ := m["tag"].(string); tag == "vpn" {
 			inbound = m
 			break
 		}
 	}
 
 	if inbound == nil {
-		return nil, fmt.Errorf("reality inbound not found")
+		return nil, fmt.Errorf("vpn inbound not found")
 	}
 
-	settings, ok := inbound["settings"].(map[string]interface{})
+	settingsRaw, ok := inbound["settings"]
 	if !ok {
-		return nil, fmt.Errorf("invalid settings")
+		return nil, fmt.Errorf("settings not found")
 	}
 
-	// clients может отсутствовать
+	settings, ok := settingsRaw.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid settings format")
+	}
+
 	var clients []interface{}
+
 	if raw := settings["clients"]; raw != nil {
-		c, ok := raw.([]interface{})
-		if ok {
-			clients = c
+		if arr, ok := raw.([]interface{}); ok {
+			clients = arr
 		}
 	}
 
@@ -140,7 +142,9 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	_ = exec.Command("systemctl", "restart", "xray").Run()
+	if err := exec.Command("systemctl", "restart", "xray").Run(); err != nil {
+		return nil, err
+	}
 
 	pbk, err := getPBKFromConfig()
 	if err != nil {
