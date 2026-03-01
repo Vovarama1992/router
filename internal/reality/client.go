@@ -82,11 +82,48 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	inbounds := cfg["inbounds"].([]interface{})
-	inb := inbounds[0].(map[string]interface{})
+	inboundsRaw, ok := cfg["inbounds"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid inbounds")
+	}
 
-	settings := inb["settings"].(map[string]interface{})
-	clients := settings["clients"].([]interface{})
+	var inbound map[string]interface{}
+
+	// ищем inbound с reality (а не первый попавшийся)
+	for _, ib := range inboundsRaw {
+		m, ok := ib.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		stream, ok := m["streamSettings"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if stream["security"] == "reality" {
+			inbound = m
+			break
+		}
+	}
+
+	if inbound == nil {
+		return nil, fmt.Errorf("reality inbound not found")
+	}
+
+	settings, ok := inbound["settings"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid settings")
+	}
+
+	// clients может отсутствовать
+	var clients []interface{}
+	if raw := settings["clients"]; raw != nil {
+		c, ok := raw.([]interface{})
+		if ok {
+			clients = c
+		}
+	}
 
 	clients = append(clients, map[string]interface{}{
 		"id": id,
@@ -103,7 +140,7 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	exec.Command("systemctl", "restart", "xray").Run()
+	_ = exec.Command("systemctl", "restart", "xray").Run()
 
 	pbk, err := getPBKFromConfig()
 	if err != nil {
