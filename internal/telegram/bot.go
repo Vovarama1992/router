@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -51,22 +52,31 @@ func (b *Bot) sendConfig(chatID int64) {
 
 	peer, err := b.svc.CreatePeer(context.Background(), chatID)
 	if err != nil {
+
+		if errors.Is(err, domain.ErrAccessDisabled) {
+			b.app.API().Send(
+				tgbotapi.NewMessage(chatID,
+					"Доступ временно отключён. Обратитесь к администратору."),
+			)
+			return
+		}
+
 		b.app.API().Send(
-			tgbotapi.NewMessage(chatID, "Ошибка создания конфига"),
+			tgbotapi.NewMessage(chatID,
+				"Ошибка создания конфига. Попробуйте позже."),
 		)
 		return
 	}
 
 	instruction := `Сейчас отправлю ссылку отдельным сообщением.
 Как подключиться:
-Android — установите Hiddify из Google Play.
-iPhone — установите Streisand из App Store.
-Компьютер — установите Hiddify: https://hiddify.org/en/download-hiddify/
+Android — Hiddify
+iPhone — Streisand
+Компьютер — https://hiddify.org/en/download-hiddify/
 После установки:
-Скопируйте ссылку
-Откройте приложение
-Нажмите «Создать подключение»
-Выберите «Импорт из буфера обмена»`
+1) Скопируйте ссылку
+2) Откройте приложение
+3) Импорт из буфера обмена`
 
 	b.app.API().Send(tgbotapi.NewMessage(chatID, instruction))
 	b.app.API().Send(tgbotapi.NewMessage(chatID, peer.Link))
