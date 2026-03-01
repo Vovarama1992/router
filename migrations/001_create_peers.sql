@@ -17,3 +17,8 @@ CREATE TABLE peers (
 );
 
 CREATE INDEX idx_peers_telegram_id ON peers (telegram_id);
+
+ALTER TABLE peers
+ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+UPDATE peers SET is_active = TRUE WHERE is_active IS NULL;

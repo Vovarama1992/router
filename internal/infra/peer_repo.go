@@ -16,14 +16,14 @@ func NewPeerRepo(db *sql.DB) *PeerRepo {
 
 func (r *PeerRepo) GetByTelegramID(ctx context.Context, tgID int64) (*models.Peer, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, uuid, telegram_id, connection_status, created_at
+		SELECT id, uuid, telegram_id, is_active, created_at
 		FROM peers
 		WHERE telegram_id = $1
 		LIMIT 1
 	`, tgID)
 
 	var p models.Peer
-	err := row.Scan(&p.ID, &p.UUID, &p.TelegramID, &p.ConnectionStatus, &p.CreatedAt)
+	err := row.Scan(&p.ID, &p.UUID, &p.TelegramID, &p.IsActive, &p.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -35,15 +35,15 @@ func (r *PeerRepo) GetByTelegramID(ctx context.Context, tgID int64) (*models.Pee
 
 func (r *PeerRepo) Create(ctx context.Context, uuid string, tgID int64) error {
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO peers (uuid, telegram_id)
-		VALUES ($1, $2)
+		INSERT INTO peers (uuid, telegram_id, is_active)
+		VALUES ($1, $2, TRUE)
 	`, uuid, tgID)
 	return err
 }
 
 func (r *PeerRepo) List(ctx context.Context) ([]models.Peer, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, uuid, telegram_id, connection_status, created_at
+		SELECT id, uuid, telegram_id, is_active, created_at
 		FROM peers
 		ORDER BY created_at DESC
 	`)
@@ -60,7 +60,7 @@ func (r *PeerRepo) List(ctx context.Context) ([]models.Peer, error) {
 			&p.ID,
 			&p.UUID,
 			&p.TelegramID,
-			&p.ConnectionStatus,
+			&p.IsActive,
 			&p.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -73,7 +73,7 @@ func (r *PeerRepo) List(ctx context.Context) ([]models.Peer, error) {
 
 func (r *PeerRepo) ListByTelegramID(ctx context.Context, tgID int64) ([]models.Peer, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, uuid, telegram_id, connection_status, created_at
+		SELECT id, uuid, telegram_id, is_active, created_at
 		FROM peers
 		WHERE telegram_id = $1
 	`, tgID)
@@ -90,7 +90,7 @@ func (r *PeerRepo) ListByTelegramID(ctx context.Context, tgID int64) ([]models.P
 			&p.ID,
 			&p.UUID,
 			&p.TelegramID,
-			&p.ConnectionStatus,
+			&p.IsActive,
 			&p.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -101,10 +101,15 @@ func (r *PeerRepo) ListByTelegramID(ctx context.Context, tgID int64) ([]models.P
 	return peers, nil
 }
 
-func (r *PeerRepo) DeleteByTelegramID(ctx context.Context, tgID int64) error {
+func (r *PeerRepo) SetActive(ctx context.Context, tgID int64, active bool) error {
 	_, err := r.db.ExecContext(ctx, `
-		DELETE FROM peers
-		WHERE telegram_id = $1
-	`, tgID)
+		UPDATE peers
+		SET is_active = $1
+		WHERE telegram_id = $2
+	`, active, tgID)
 	return err
+}
+
+func (r *PeerRepo) Reactivate(ctx context.Context, tgID int64) error {
+	return r.SetActive(ctx, tgID, true)
 }

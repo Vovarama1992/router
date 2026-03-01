@@ -26,13 +26,23 @@ func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, erro
 
 	log.Printf("[domain] CreatePeer start tg=%d", telegramID)
 
-	// 1 — проверяем есть ли уже
 	existing, err := s.repo.GetByTelegramID(ctx, telegramID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Если уже есть запись
 	if existing != nil {
+		// Если был отключён — реактивируем
+		if !existing.IsActive {
+			if err := reality.AddClient(existing.UUID); err != nil {
+				return nil, err
+			}
+			if err := s.repo.SetActive(ctx, telegramID, true); err != nil {
+				return nil, err
+			}
+		}
+
 		link, err := reality.BuildLink(existing.UUID)
 		if err != nil {
 			return nil, err
@@ -43,7 +53,7 @@ func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, erro
 		return &Peer{Link: link}, nil
 	}
 
-	// 2 — создаём нового клиента
+	// Создаём нового
 	client, err := reality.CreateClient()
 	if err != nil {
 		return nil, err
@@ -63,7 +73,7 @@ func (s *Service) CreatePeer(ctx context.Context, telegramID int64) (*Peer, erro
 type PeerInfo struct {
 	TelegramID int64  `json:"telegram_id"`
 	UUID       string `json:"uuid"`
-	Status     string `json:"status"`
+	IsActive   bool   `json:"is_active"`
 }
 
 func (s *Service) ListPeers(ctx context.Context) ([]PeerInfo, error) {
@@ -77,7 +87,7 @@ func (s *Service) ListPeers(ctx context.Context) ([]PeerInfo, error) {
 		out = append(out, PeerInfo{
 			TelegramID: p.TelegramID,
 			UUID:       p.UUID,
-			Status:     p.ConnectionStatus,
+			IsActive:   p.IsActive,
 		})
 	}
 
@@ -96,18 +106,37 @@ func (s *Service) DisableByTelegramID(ctx context.Context, telegramID int64) err
 
 	var uuids []string
 	for _, p := range peers {
-		uuids = append(uuids, p.UUID)
+		if p.IsActive {
+			uuids = append(uuids, p.UUID)
+		}
 	}
 
-	// 1 — удаляем из xray
-	if err := reality.RemoveClients(uuids); err != nil {
+	if len(uuids) > 0 {
+		if err := reality.RemoveClients(uuids); err != nil {
+			return err
+		}
+	}
+
+	return s.repo.SetActive(ctx, telegramID, false)
+}
+
+func (s *Service) EnableByTelegramID(ctx context.Context, telegramID int64) error {
+	peers, err := s.repo.ListByTelegramID(ctx, telegramID)
+	if err != nil {
 		return err
 	}
 
-	// 2 — удаляем из БД
-	if err := s.repo.DeleteByTelegramID(ctx, telegramID); err != nil {
-		return err
+	if len(peers) == 0 {
+		return nil
 	}
 
-	return nil
+	for _, p := range peers {
+		if !p.IsActive {
+			if err := reality.AddClient(p.UUID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return s.repo.SetActive(ctx, telegramID, true)
 }

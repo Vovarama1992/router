@@ -14,6 +14,7 @@ func NewRouter(h *Handlers) *Router {
 	// API
 	mux.HandleFunc("/api/peers", h.ListPeers)
 	mux.HandleFunc("/api/disable", h.DisablePeer)
+	mux.HandleFunc("/api/enable", h.EnablePeer)
 
 	// фронт
 	mux.Handle("/", http.FileServer(http.Dir("./front-dist")))
