@@ -2,6 +2,7 @@ package reality
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 )
@@ -17,15 +18,34 @@ func RemoveClients(uuids []string) error {
 		return err
 	}
 
-	inbounds := cfg["inbounds"].([]interface{})
-	inb := inbounds[0].(map[string]interface{})
+	inbounds, ok := cfg["inbounds"].([]interface{})
+	if !ok {
+		return fmt.Errorf("invalid inbounds")
+	}
 
-	settings := inb["settings"].(map[string]interface{})
-	clients := settings["clients"].([]interface{})
+	var vpnInbound map[string]interface{}
+
+	for _, ib := range inbounds {
+		inb := ib.(map[string]interface{})
+		if inb["tag"] == "vpn" {
+			vpnInbound = inb
+			break
+		}
+	}
+
+	if vpnInbound == nil {
+		return fmt.Errorf("vpn inbound not found")
+	}
+
+	settings := vpnInbound["settings"].(map[string]interface{})
+	clientsRaw, ok := settings["clients"].([]interface{})
+	if !ok {
+		return fmt.Errorf("clients not found")
+	}
 
 	var newClients []interface{}
 
-	for _, c := range clients {
+	for _, c := range clientsRaw {
 		client := c.(map[string]interface{})
 		id := client["id"].(string)
 
@@ -53,7 +73,9 @@ func RemoveClients(uuids []string) error {
 		return err
 	}
 
-	go exec.Command("systemctl", "restart", "xray").Run()
+	go func() {
+		_ = exec.Command("systemctl", "restart", "xray").Run()
+	}()
 
 	return nil
 }
