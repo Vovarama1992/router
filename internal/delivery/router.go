@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"net/http"
+	"os"
 )
 
 type Router struct {
@@ -17,7 +18,18 @@ func NewRouter(h *Handlers) *Router {
 	mux.HandleFunc("/api/enable", h.EnablePeer)
 
 	// фронт
-	mux.Handle("/", http.FileServer(http.Dir("./front-dist")))
+	fileServer := http.FileServer(http.Dir("./front-dist"))
+
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := "./front-dist" + r.URL.Path
+
+		if _, err := os.Stat(path); err == nil {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		http.ServeFile(w, r, "./front-dist/index.html")
+	}))
 
 	return &Router{mux: mux}
 }
