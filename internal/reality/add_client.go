@@ -23,48 +23,47 @@ func AddClient(uuid string) error {
 		return fmt.Errorf("invalid inbounds")
 	}
 
-	var inbound map[string]interface{}
-
 	for _, ib := range inboundsRaw {
-		m, ok := ib.(map[string]interface{})
+		inbound, ok := ib.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		if tag, _ := m["tag"].(string); tag == "vpn" {
-			inbound = m
-			break
+
+		protocol, _ := inbound["protocol"].(string)
+		if protocol != "vless" {
+			continue
 		}
-	}
 
-	if inbound == nil {
-		return fmt.Errorf("vpn inbound not found")
-	}
-
-	settings, ok := inbound["settings"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid settings")
-	}
-
-	var clients []interface{}
-
-	if raw := settings["clients"]; raw != nil {
-		if arr, ok := raw.([]interface{}); ok {
-			clients = arr
+		settings, ok := inbound["settings"].(map[string]interface{})
+		if !ok {
+			continue
 		}
-	}
 
-	for _, c := range clients {
-		m, ok := c.(map[string]interface{})
-		if ok && m["id"] == uuid {
-			return nil
+		var clients []interface{}
+
+		if raw := settings["clients"]; raw != nil {
+			if arr, ok := raw.([]interface{}); ok {
+				clients = arr
+			}
 		}
+
+		exists := false
+		for _, c := range clients {
+			m, ok := c.(map[string]interface{})
+			if ok && m["id"] == uuid {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			clients = append(clients, map[string]interface{}{
+				"id": uuid,
+			})
+		}
+
+		settings["clients"] = clients
 	}
-
-	clients = append(clients, map[string]interface{}{
-		"id": uuid,
-	})
-
-	settings["clients"] = clients
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
