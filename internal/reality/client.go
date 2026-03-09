@@ -112,56 +112,41 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	inboundsRaw, ok := cfg["inbounds"]
+	inboundsRaw, ok := cfg["inbounds"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("inbounds not found")
+		return nil, fmt.Errorf("invalid inbounds")
 	}
 
-	inbounds, ok := inboundsRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid inbounds format")
-	}
-
-	var inbound map[string]interface{}
-
-	for _, ib := range inbounds {
-		m, ok := ib.(map[string]interface{})
+	for _, ib := range inboundsRaw {
+		inbound, ok := ib.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		if tag, _ := m["tag"].(string); tag == "vpn" {
-			inbound = m
-			break
+
+		protocol, _ := inbound["protocol"].(string)
+		if protocol != "vless" {
+			continue
 		}
-	}
 
-	if inbound == nil {
-		return nil, fmt.Errorf("vpn inbound not found")
-	}
-
-	settingsRaw, ok := inbound["settings"]
-	if !ok {
-		return nil, fmt.Errorf("settings not found")
-	}
-
-	settings, ok := settingsRaw.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid settings format")
-	}
-
-	var clients []interface{}
-
-	if raw := settings["clients"]; raw != nil {
-		if arr, ok := raw.([]interface{}); ok {
-			clients = arr
+		settings, ok := inbound["settings"].(map[string]interface{})
+		if !ok {
+			continue
 		}
+
+		var clients []interface{}
+
+		if raw := settings["clients"]; raw != nil {
+			if arr, ok := raw.([]interface{}); ok {
+				clients = arr
+			}
+		}
+
+		clients = append(clients, map[string]interface{}{
+			"id": id,
+		})
+
+		settings["clients"] = clients
 	}
-
-	clients = append(clients, map[string]interface{}{
-		"id": id,
-	})
-
-	settings["clients"] = clients
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
