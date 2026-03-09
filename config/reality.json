@@ -1,0 +1,11 @@
+{
+  "server": "185.253.8.123",
+  "port": 443,
+  "sid": "eee842cbf9f8e299",
+  "sni": [
+    "cdn.apple.com",
+    "www.microsoft.com",
+    "ajax.googleapis.com",
+    "www.cloudflare.com"
+  ]
+}

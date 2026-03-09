@@ -3,23 +3,30 @@ package reality
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const (
 	configPath = "/usr/local/etc/xray/config.json"
-	server     = "185.253.8.123"
-	sni        = "www.cloudflare.com"
-	sid        = "eee842cbf9f8e299"
+	realityCfg = "config/reality.json"
 )
 
 type Client struct {
 	UUID string
 	Link string
+}
+
+type realityConfig struct {
+	Server string   `json:"server"`
+	Port   int      `json:"port"`
+	SID    string   `json:"sid"`
+	SNI    []string `json:"sni"`
 }
 
 type xrayConfig struct {
@@ -30,6 +37,29 @@ type xrayConfig struct {
 			} `json:"realitySettings"`
 		} `json:"streamSettings"`
 	} `json:"inbounds"`
+}
+
+func loadRealityConfig() (*realityConfig, error) {
+	data, err := os.ReadFile(realityCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg realityConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+
+	if len(cfg.SNI) == 0 {
+		return nil, fmt.Errorf("sni list empty")
+	}
+
+	return &cfg, nil
+}
+
+func randomSNI(list []string) string {
+	rand.Seed(time.Now().UnixNano())
+	return list[rand.Intn(len(list))]
 }
 
 func parsePublicKey(s string) string {
@@ -151,13 +181,21 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
+	rcfg, err := loadRealityConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	sni := randomSNI(rcfg.SNI)
+
 	link := fmt.Sprintf(
-		"vless://%s@%s:443?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
+		"vless://%s@%s:%d?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
 		id,
-		server,
+		rcfg.Server,
+		rcfg.Port,
 		sni,
 		pbk,
-		sid,
+		rcfg.SID,
 	)
 
 	return &Client{
@@ -172,13 +210,21 @@ func BuildLink(uuid string) (string, error) {
 		return "", err
 	}
 
+	rcfg, err := loadRealityConfig()
+	if err != nil {
+		return "", err
+	}
+
+	sni := randomSNI(rcfg.SNI)
+
 	link := fmt.Sprintf(
-		"vless://%s@%s:443?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
+		"vless://%s@%s:%d?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
 		uuid,
-		server,
+		rcfg.Server,
+		rcfg.Port,
 		sni,
 		pbk,
-		sid,
+		rcfg.SID,
 	)
 
 	return link, nil

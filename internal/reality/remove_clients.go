@@ -26,8 +26,11 @@ func RemoveClients(uuids []string) error {
 	var vpnInbound map[string]interface{}
 
 	for _, ib := range inbounds {
-		inb := ib.(map[string]interface{})
-		if inb["tag"] == "vpn" {
+		inb, ok := ib.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if tag, _ := inb["tag"].(string); tag == "vpn" {
 			vpnInbound = inb
 			break
 		}
@@ -37,7 +40,11 @@ func RemoveClients(uuids []string) error {
 		return fmt.Errorf("vpn inbound not found")
 	}
 
-	settings := vpnInbound["settings"].(map[string]interface{})
+	settings, ok := vpnInbound["settings"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid settings")
+	}
+
 	clientsRaw, ok := settings["clients"].([]interface{})
 	if !ok {
 		return fmt.Errorf("clients not found")
@@ -46,8 +53,15 @@ func RemoveClients(uuids []string) error {
 	var newClients []interface{}
 
 	for _, c := range clientsRaw {
-		client := c.(map[string]interface{})
-		id := client["id"].(string)
+		client, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		id, ok := client["id"].(string)
+		if !ok {
+			continue
+		}
 
 		keep := true
 		for _, u := range uuids {
@@ -73,9 +87,5 @@ func RemoveClients(uuids []string) error {
 		return err
 	}
 
-	go func() {
-		_ = exec.Command("systemctl", "restart", "xray").Run()
-	}()
-
-	return nil
+	return exec.Command("systemctl", "restart", "xray").Run()
 }

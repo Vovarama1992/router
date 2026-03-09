@@ -1,0 +1,75 @@
+{
+  "inbounds": [
+    {
+      "port": 4443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "64f2ea4c-6e2f-4ab9-9ae7-5ce785710705"
+          },
+          {
+            "id": "3afd020f-1a7e-4f68-9db9-befff687fe15"
+          },
+          {
+            "id": "27d2808c-82dc-4910-945e-beb7cdf8e1cf"
+          },
+          {
+            "id": "2fd0c3e0-6708-4d8e-808b-3b505ce952d4"
+          },
+          {
+            "id": "46e7fc47-74c1-494e-81f4-3230fbc50c20"
+          },
+          {
+            "id": "af227175-eca9-4464-8c72-fffa36e79be2"
+          },
+          {
+            "id": "f1e37b05-1ba5-4ec1-b436-6d219cfd8fc0"
+          },
+          {
+            "id": "63b79b1a-5ccc-48bd-80f1-5e71613467f5"
+          },
+          {
+            "id": "fe31767a-4ba3-46e9-bb5c-77ee38d01632"
+          },
+          {
+            "id": "38921964-a3fe-41df-a6e8-d91143d16255"
+          },
+          {
+            "id": "48fc5dd8-36fd-407b-bd46-7514c49b1e0b"
+          },
+          {
+            "id": "053f1275-7f1f-488f-8311-316ed474be54"
+          },
+          {
+            "id": "227474ba-12a5-486a-a40e-356d026ff970"
+          },
+          {
+            "id": "c5b807f7-44f3-4b10-a9f5-28fd4da519ac"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "dest": "www.cloudflare.com:443",
+          "privateKey": "sOSqyLV3S2-LK0hAdcdP3bqz_0YsPEjKvQLv8fdVEGw",
+          "serverNames": ["www.cloudflare.com"],
+          "shortIds": ["eee842cbf9f8e299"],
+          "xver": 0
+        },
+        "security": "reality"
+      },
+      "tag": "vpn"
+    }
+  ],
+  "log": {
+    "loglevel": "debug"
+  },
+  "outbounds": [
+    {
+      "protocol": "freedom"
+    }
+  ]
+}

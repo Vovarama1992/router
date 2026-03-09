@@ -53,7 +53,6 @@ func AddClient(uuid string) error {
 		}
 	}
 
-	// не добавляем дубликат
 	for _, c := range clients {
 		m, ok := c.(map[string]interface{})
 		if ok && m["id"] == uuid {
