@@ -14,8 +14,7 @@ func NewRouter(h *Handlers) *Router {
 
 	// API
 	mux.HandleFunc("/api/peers", h.ListPeers)
-	mux.HandleFunc("/api/disable", h.DisablePeer)
-	mux.HandleFunc("/api/enable", h.EnablePeer)
+	mux.HandleFunc("/api/user/until", h.SetUserUntil)
 
 	// фронт
 	fileServer := http.FileServer(http.Dir("./front-dist"))

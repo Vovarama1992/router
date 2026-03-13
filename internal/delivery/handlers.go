@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"router/internal/domain"
 )
@@ -27,10 +28,12 @@ func (h *Handlers) ListPeers(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(peers)
 }
 
-func (h *Handlers) DisablePeer(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) SetUserUntil(w http.ResponseWriter, r *http.Request) {
 	tgIDStr := r.URL.Query().Get("telegram_id")
-	if tgIDStr == "" {
-		http.Error(w, "telegram_id required", http.StatusBadRequest)
+	untilStr := r.URL.Query().Get("until")
+
+	if tgIDStr == "" || untilStr == "" {
+		http.Error(w, "telegram_id and until required", http.StatusBadRequest)
 		return
 	}
 
@@ -40,28 +43,13 @@ func (h *Handlers) DisablePeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.DisableByTelegramID(r.Context(), tgID); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (h *Handlers) EnablePeer(w http.ResponseWriter, r *http.Request) {
-	tgIDStr := r.URL.Query().Get("telegram_id")
-	if tgIDStr == "" {
-		http.Error(w, "telegram_id required", http.StatusBadRequest)
-		return
-	}
-
-	tgID, err := strconv.ParseInt(tgIDStr, 10, 64)
+	until, err := time.Parse(time.RFC3339, untilStr)
 	if err != nil {
-		http.Error(w, "invalid telegram_id", http.StatusBadRequest)
+		http.Error(w, "invalid until format (use RFC3339)", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.svc.EnableByTelegramID(r.Context(), tgID); err != nil {
+	if err := h.svc.SetUserUntil(r.Context(), tgID, until); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

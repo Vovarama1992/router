@@ -36,9 +36,10 @@ func main() {
 
 	// ---- infra ----
 	peerRepo := infra.NewPeerRepo(db)
+	userRepo := infra.NewUserRepo(db)
 
 	// ---- domain ----
-	vpnService := domain.NewService(peerRepo)
+	vpnService := domain.NewService(peerRepo, userRepo)
 
 	// ---- telegram ----
 	app, err := telegram.NewFromEnv()
