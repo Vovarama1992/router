@@ -18,8 +18,8 @@
         "security": "reality",
 
         "realitySettings": {
-          "dest": "www.cloudflare.com:443",
-          "privateKey": "sOSqyLV3S2-LK0hAdcdP3bqz_0YsPEjKvQLv8fdVEGw",
+          "dest": "www.microsoft.com:443",
+          "privateKey": "-BbNki4ThUi2oX52CLhkBSyrPaeCBsq1Go4nSOebuF4",
 
           "serverNames": [
             "www.cloudflare.com",

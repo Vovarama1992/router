@@ -14,7 +14,7 @@ import (
 
 const (
 	configPath = "/usr/local/etc/xray/config.json"
-	realityCfg = "config/reality.json"
+	serverAddr = "straightfunctor.xyz"
 )
 
 type Client struct {
@@ -22,42 +22,25 @@ type Client struct {
 	Link string
 }
 
-type realityConfig struct {
-	Server string   `json:"server"`
-	Port   int      `json:"port"`
-	SID    string   `json:"sid"`
-	SNI    []string `json:"sni"`
-}
-
 type xrayConfig struct {
 	Inbounds []struct {
+		Port     int `json:"port"`
+		Settings struct {
+			Clients []struct {
+				ID string `json:"id"`
+			} `json:"clients"`
+		} `json:"settings"`
 		StreamSettings struct {
 			RealitySettings struct {
-				PrivateKey string `json:"privateKey"`
+				PrivateKey  string   `json:"privateKey"`
+				ShortIds    []string `json:"shortIds"`
+				ServerNames []string `json:"serverNames"`
 			} `json:"realitySettings"`
 		} `json:"streamSettings"`
 	} `json:"inbounds"`
 }
 
-func loadRealityConfig() (*realityConfig, error) {
-	data, err := os.ReadFile(realityCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg realityConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-
-	if len(cfg.SNI) == 0 {
-		return nil, fmt.Errorf("sni list empty")
-	}
-
-	return &cfg, nil
-}
-
-func randomSNI(list []string) string {
+func random(list []string) string {
 	rand.Seed(time.Now().UnixNano())
 	return list[rand.Intn(len(list))]
 }
@@ -72,19 +55,25 @@ func parsePublicKey(s string) string {
 	return ""
 }
 
-func getPBKFromConfig() (string, error) {
+func loadConfig() (*xrayConfig, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var cfg xrayConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	priv := cfg.Inbounds[0].StreamSettings.RealitySettings.PrivateKey
+	if len(cfg.Inbounds) == 0 {
+		return nil, fmt.Errorf("no inbounds")
+	}
 
+	return &cfg, nil
+}
+
+func getPBK(priv string) (string, error) {
 	cmd := exec.Command("xray", "x25519", "-i", priv)
 	out, err := cmd.Output()
 	if err != nil {
@@ -100,53 +89,21 @@ func getPBKFromConfig() (string, error) {
 }
 
 func CreateClient() (*Client, error) {
-	id := uuid.New().String()
 
-	data, err := os.ReadFile(configPath)
+	cfg, err := loadConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg map[string]interface{}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
+	in := &cfg.Inbounds[0]
 
-	inboundsRaw, ok := cfg["inbounds"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid inbounds")
-	}
+	id := uuid.New().String()
 
-	for _, ib := range inboundsRaw {
-		inbound, ok := ib.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		protocol, _ := inbound["protocol"].(string)
-		if protocol != "vless" {
-			continue
-		}
-
-		settings, ok := inbound["settings"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		var clients []interface{}
-
-		if raw := settings["clients"]; raw != nil {
-			if arr, ok := raw.([]interface{}); ok {
-				clients = arr
-			}
-		}
-
-		clients = append(clients, map[string]interface{}{
-			"id": id,
-		})
-
-		settings["clients"] = clients
-	}
+	in.Settings.Clients = append(in.Settings.Clients, struct {
+		ID string `json:"id"`
+	}{
+		ID: id,
+	})
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -161,26 +118,22 @@ func CreateClient() (*Client, error) {
 		return nil, err
 	}
 
-	pbk, err := getPBKFromConfig()
+	pbk, err := getPBK(in.StreamSettings.RealitySettings.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	rcfg, err := loadRealityConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	sni := randomSNI(rcfg.SNI)
+	sni := random(in.StreamSettings.RealitySettings.ServerNames)
+	sid := random(in.StreamSettings.RealitySettings.ShortIds)
 
 	link := fmt.Sprintf(
 		"vless://%s@%s:%d?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
 		id,
-		rcfg.Server,
-		rcfg.Port,
+		serverAddr,
+		in.Port,
 		sni,
 		pbk,
-		rcfg.SID,
+		sid,
 	)
 
 	return &Client{
@@ -190,26 +143,30 @@ func CreateClient() (*Client, error) {
 }
 
 func BuildLink(uuid string) (string, error) {
-	pbk, err := getPBKFromConfig()
+
+	cfg, err := loadConfig()
 	if err != nil {
 		return "", err
 	}
 
-	rcfg, err := loadRealityConfig()
+	in := &cfg.Inbounds[0]
+
+	pbk, err := getPBK(in.StreamSettings.RealitySettings.PrivateKey)
 	if err != nil {
 		return "", err
 	}
 
-	sni := randomSNI(rcfg.SNI)
+	sni := random(in.StreamSettings.RealitySettings.ServerNames)
+	sid := random(in.StreamSettings.RealitySettings.ShortIds)
 
 	link := fmt.Sprintf(
 		"vless://%s@%s:%d?encryption=none&security=reality&sni=%s&fp=chrome&pbk=%s&sid=%s&type=tcp#peer",
 		uuid,
-		rcfg.Server,
-		rcfg.Port,
+		serverAddr,
+		in.Port,
 		sni,
 		pbk,
-		rcfg.SID,
+		sid,
 	)
 
 	return link, nil
